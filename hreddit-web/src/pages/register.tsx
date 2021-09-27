@@ -11,6 +11,8 @@ import { useMutation, useQuery } from 'urql';
 import { useRegisterMutation } from '../generated/graphql';
 import { toErrorMap } from '../utils/toErrorMap';
 import { useRouter } from 'next/dist/client/router';
+import { withUrqlClient } from 'next-urql';
+import { createURQLClient } from '../utils/createURQLClient';
 
 interface registerProps {
 
@@ -21,9 +23,9 @@ export const Register: React.FC<registerProps> = ({ }) => {
     const [, register] = useRegisterMutation()
     return (
         <Wrapper variant="small">
-            <Formik initialValues={{ username: "", password: "" }}
+            <Formik initialValues={{ userName: "", passWord: "", email: "" }}
                 onSubmit={async (values, { setErrors }) => {
-                    const res = await register({ userName: values.username, passWord: values.password })
+                    const res = await register({ options: values })
                     if (res.data?.register.errors) {
                         setErrors(toErrorMap(res.data.register.errors))
                     } else if (res.data.register.user) {
@@ -33,8 +35,9 @@ export const Register: React.FC<registerProps> = ({ }) => {
                 {
                     ({ isSubmitting }) => (
                         <Form>
-                            <InputField name="username" placeholder="username" label="Username" />
-                            <InputField name="password" placeholder="password" label="Password" type="password" />
+                            <InputField name="userName" placeholder="username" label="Username" />
+                            <InputField name="passWord" placeholder="password" label="password" type="password" />
+                            <InputField name="email" placeholder="email" label="email" />
                             <Button type="submit" mt={4} isLoading={isSubmitting} colorScheme="teal">Submit</Button>
                         </Form>
                     )
@@ -43,4 +46,4 @@ export const Register: React.FC<registerProps> = ({ }) => {
         </Wrapper>
     );
 }
-export default Register
+export default withUrqlClient(createURQLClient)(Register)

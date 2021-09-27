@@ -3,12 +3,18 @@ import React from 'react'
 import NextLink from "next/link"
 import { useLogoutMutation, useMeQuery } from '../generated/graphql';
 import { Button } from '@chakra-ui/button';
+import { isServer } from '../utils/isServer';
 interface NavbarProps {
 
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ }) => {
-    const [{ data, fetching }] = useMeQuery()
+    const [{ data, fetching }] = useMeQuery({
+        pause: isServer() //tell QUERY to pause the query at NextJS server because we just want to QUERY on browser
+    })
+
+
+
     const [, logout] = useLogoutMutation()
     let body = null
     if (fetching) {

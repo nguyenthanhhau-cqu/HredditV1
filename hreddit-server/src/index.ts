@@ -8,32 +8,32 @@ import { buildSchema } from "type-graphql";
 import { PostResolver } from "./resolver/postResolver"
 import { UserResolver } from "./resolver/user-resolver"
 import cors from "cors"
-import redis from 'redis'
+import Redis from 'ioredis'
 import connectRedis from "connect-redis"
 import Session from 'express-session'
-
-
+import {
+    ApolloServerPluginLandingPageGraphQLPlayground
+} from "apollo-server-core"
 
 
 const main = async () => {
-
     const orm = await MikroORM.init(mikroOrmConfig);
     await orm.getMigrator().up();
     const app = express()
     let RedisStore = connectRedis(Session)
-    let redisClient = redis.createClient()
+    let redis = new Redis()
     app.set("trust proxy", 1);
 
 
     app.use(cors({
-        origin: "http://localhost:3000",
+        origin: "http://localhost:4000",
         credentials: true
     }))
 
     app.use(
         Session({
             name: "qid",
-            store: new RedisStore({ client: redisClient, disableTouch: false, }),
+            store: new RedisStore({ client: redis, disableTouch: false, }),
             saveUninitialized: false,
             cookie: {
                 maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
@@ -45,23 +45,24 @@ const main = async () => {
             resave: false,
         }),
 
-
-
-
     )
 
     const server = new ApolloServer({
 
         schema: await buildSchema({
             resolvers: [PostResolver, UserResolver],
-            validate: false
-
+            validate: false,
         }),
-        context: ({ req, res }): any => ({ //context can be accessible by any Resolver
+        plugins: [
+            ApolloServerPluginLandingPageGraphQLPlayground(),
+        ],
+        context: ({ req, res, }): any => ({ //context can be accessible by any Resolver
             em: orm.em,
             req,
-            res
+            res,
+            redis
         }),
+
 
     })
 

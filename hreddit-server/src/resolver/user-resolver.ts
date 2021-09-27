@@ -2,6 +2,9 @@ import { MyConText } from "src/types";
 import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import { User } from "../entities/User";
 import * as argon2 from "argon2";
+import { v4 } from "uuid";
+import { sendEmail } from "../utils/sendEmail"
+import { FORGET_PASSWORD_PREFIX } from "../utils/prefix"
 
 
 
@@ -31,11 +34,32 @@ export class UserInput {
     userName: string
     @Field()
     passWord: string
+    @Field()
+    email: string
 }
 
 
 @Resolver()
 export class UserResolver {
+
+    @Mutation(() => Boolean)
+    async forgotPassword(
+        @Arg("email") email: string,
+        @Ctx() { em, redis }: MyConText
+    ) {
+        const user = await em.findOne(User, { email })
+        if (!user) {
+            return true
+        }
+        const token = v4()
+
+        await redis.set(FORGET_PASSWORD_PREFIX + token, user.id, "ex", 1000 * 60 * 60 * 24 * 3) //3days
+
+        await sendEmail(email, `<a href="http://localhost:3000/change-password/${token}">reset password</a>`)
+
+        return true;
+    }
+
 
     @Query(() => User, { nullable: true })
     me(@Ctx() { req, em }: MyConText) {
@@ -50,12 +74,28 @@ export class UserResolver {
     @Mutation(() => UserRespond)
     async register(
         @Arg("options") options: UserInput,
-        @Ctx() { req, res, em }: MyConText
+        @Ctx() { req, em }: MyConText
     ): Promise<UserRespond> {
+        if (!options.email.includes("@")) {
+            return {
+                errors: [{
+                    fieldName: "email",
+                    errorMessage: "you must enter an email"
+                }]
+            }
+        }
+        if (options.userName.includes("@")) {
+            return {
+                errors: [{
+                    fieldName: "userName",
+                    errorMessage: "Can't include @ in your username"
+                }]
+            }
+        }
         if (options.userName.length <= 2) {
             return {
                 errors: [{
-                    fieldName: "username",
+                    fieldName: "userName",
                     errorMessage: "Your user name must greater then 2 character"
                 }]
             }
@@ -63,13 +103,13 @@ export class UserResolver {
         if (options.passWord.length <= 3) {
             return {
                 errors: [{
-                    fieldName: "password",
+                    fieldName: "passWord",
                     errorMessage: "Your password must greater then 3 character"
                 }]
             }
         }
         const hashPassWord = await argon2.hash(options.passWord)
-        const user = em.create(User, { userName: options.userName, passWord: hashPassWord })
+        const user = em.create(User, { userName: options.userName, passWord: hashPassWord, email: options.email })
         try {
             await em.persistAndFlush(user)
         } catch (err) {
@@ -88,27 +128,28 @@ export class UserResolver {
     }
     @Mutation(() => UserRespond)
     async login(
-        @Arg("options") options: UserInput,
+        @Arg("userNameOrEmail") userNameOrEmail: string,
+        @Arg("passWord") passWord: string,
         @Ctx() { req, em }: MyConText
     ): Promise<UserRespond> {
-        const user = await em.findOne(User, { userName: options.userName })
+        const user = await em.findOne(User, userNameOrEmail.includes("@") ? { email: userNameOrEmail } : { userName: userNameOrEmail })
         if (!user) {
             return {
                 errors: [
                     {
-                        fieldName: "username",
-                        errorMessage: "your user name doest exist or invalid"
+                        fieldName: "userNameOrEmail",
+                        errorMessage: "your user name or email doest exist or invalid"
                     }
                 ]
             }
         }
-        const unHashPassWord = await argon2.verify(user.passWord, options.passWord)
+        const unHashPassWord = await argon2.verify(user.passWord, passWord)
         if (!unHashPassWord) {
             return {
                 errors: [
                     {
-                        fieldName: "password",
-                        errorMessage: "your password is not correct"
+                        fieldName: "passWord",
+                        errorMessage: "your passWord is not correct"
                     }
                 ]
             }
