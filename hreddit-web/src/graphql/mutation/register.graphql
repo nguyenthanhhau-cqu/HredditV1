@@ -1,11 +1,11 @@
 mutation Register($options: UserInput!) {
-    register(options: $options ) {
-      user {
-        ...RegularUser
-      }
-      errors {
-        errorMessage
-         fieldName
-      }
+  register(options: $options) {
+    user {
+      ...RegularUser
+    }
+    errors {
+      errorMessage
+      fieldName
     }
   }
+}

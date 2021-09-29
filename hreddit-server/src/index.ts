@@ -1,7 +1,5 @@
-import { MikroORM } from "@mikro-orm/core"
+import "reflect-metadata"
 import { __prod__ } from './constant'
-// import { Post } from "./entities/Post"
-import mikroOrmConfig from "./mikro-orm.config"
 import express from 'express'
 import { ApolloServer } from "apollo-server-express"
 import { buildSchema } from "type-graphql";
@@ -14,11 +12,24 @@ import Session from 'express-session'
 import {
     ApolloServerPluginLandingPageGraphQLPlayground
 } from "apollo-server-core"
+import { createConnection } from "typeorm"
+import { Post } from "./entities/Post"
+import { User } from "./entities/User"
 
 
 const main = async () => {
-    const orm = await MikroORM.init(mikroOrmConfig);
-    await orm.getMigrator().up();
+    const conn = await createConnection({
+        type: "postgres",
+        database: "hredditdb2",
+        username: "postgres",
+        password: "Anhdasai123",
+        entities: [Post, User],
+        logging: true,
+        synchronize: true //Auto migration
+
+    })
+
+
     const app = express()
     let RedisStore = connectRedis(Session)
     let redis = new Redis()
@@ -26,7 +37,7 @@ const main = async () => {
 
 
     app.use(cors({
-        origin: "http://localhost:4000",
+        origin: "http://localhost:3000",
         credentials: true
     }))
 
@@ -57,7 +68,6 @@ const main = async () => {
             ApolloServerPluginLandingPageGraphQLPlayground(),
         ],
         context: ({ req, res, }): any => ({ //context can be accessible by any Resolver
-            em: orm.em,
             req,
             res,
             redis

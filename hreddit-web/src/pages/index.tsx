@@ -4,6 +4,7 @@ import { createURQLClient } from "../utils/createURQLClient";
 import { usePostsQuery } from "../generated/graphql";
 
 
+
 const Index = () => {
 
   const [{ data }] = usePostsQuery();

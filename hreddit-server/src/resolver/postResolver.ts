@@ -1,31 +1,28 @@
 import { Post } from "../entities/Post";
+import { Arg, Ctx, Int, Mutation, Query, Resolver, UseMiddleware } from "type-graphql";
 import { MyConText } from "src/types";
-import { Arg, Ctx, Int, Mutation, Query, Resolver } from "type-graphql";
+import { isAuth } from "../middleware/isAuth";
 
 @Resolver()
 export class PostResolver {
     @Query(() => [Post])
-    posts(
-        @Ctx() ctx: MyConText
-    ): Promise<Post[]> {
-        return ctx.em.find(Post, {})
+    posts(): Promise<Post[]> {
+        return Post.find()
     }
 
     @Query(() => Post, { nullable: true })
     async post(
         @Arg('id', () => Int) id: number,
-        @Ctx() ctx: MyConText
-    ): Promise<Post | null> {
-        return await ctx.em.findOne(Post, { id })
+    ): Promise<Post | undefined> {
+        return await Post.findOne(id)
     }
 
 
     @Mutation(() => Boolean, { nullable: true })
     async deletePost(
         @Arg('id') id: number,
-        @Ctx() ctx: MyConText
     ): Promise<boolean | null> {
-        await ctx.em.nativeDelete(Post, { id });
+        await Post.delete(id);
         return true;
     }
 
@@ -33,25 +30,26 @@ export class PostResolver {
     async updatePost(
         @Arg('id') id: number,
         @Arg('title', () => String, { nullable: true }) title: string,
-        @Ctx() ctx: MyConText
     ): Promise<Post | null> {
-        const post = await ctx.em.findOne(Post, { id });
+        const post = await Post.findOne({ where: { id } })
         if (!post) {
             return null
         }
         if (typeof title !== "undefined") {
-            post.title = title;
-            await ctx.em.persistAndFlush(post);
+            await Post.update({ id }, { title })
         }
         return post
     }
+
     @Mutation(() => Post, { nullable: true })
+    @UseMiddleware(isAuth)
     async createPost(
         @Arg('title', () => String, { nullable: true }) title: string,
-        @Ctx() ctx: MyConText
+        @Arg('text', () => String, { nullable: true }) text: string,
+        @Ctx() { req }: MyConText
     ): Promise<Post> {
-        const post = ctx.em.create(Post, { title: title })
-        await ctx.em.persistAndFlush(post)
-        return post;
+
+
+        return Post.create({ title, text, creatorId: req.session.userId }).save();
     }
 }
