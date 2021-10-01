@@ -94,6 +94,12 @@ export type QueryPostArgs = {
   id: Scalars['Int'];
 };
 
+
+export type QueryPostsArgs = {
+  cursor?: Maybe<Scalars['String']>;
+  limit: Scalars['Int'];
+};
+
 export type User = {
   __typename?: 'User';
   createdAt: Scalars['String'];
@@ -165,10 +171,13 @@ export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type MeQuery = { __typename?: 'Query', me?: Maybe<{ __typename?: 'User', id: number, userName: string }> };
 
-export type PostsQueryVariables = Exact<{ [key: string]: never; }>;
+export type PostsQueryVariables = Exact<{
+  limit: Scalars['Int'];
+  cursor?: Maybe<Scalars['String']>;
+}>;
 
 
-export type PostsQuery = { __typename?: 'Query', posts: Array<{ __typename?: 'Post', id: number, createdAt: string, title: string, updatedAt: string }> };
+export type PostsQuery = { __typename?: 'Query', posts: Array<{ __typename?: 'Post', id: number, createdAt: string, title: string, updatedAt: string, text: string }> };
 
 export const RegularUserFragmentDoc = gql`
     fragment RegularUser on User {
@@ -272,12 +281,13 @@ export function useMeQuery(options: Omit<Urql.UseQueryArgs<MeQueryVariables>, 'q
   return Urql.useQuery<MeQuery>({ query: MeDocument, ...options });
 };
 export const PostsDocument = gql`
-    query Posts {
-  posts {
+    query Posts($limit: Int!, $cursor: String) {
+  posts(limit: $limit, cursor: $cursor) {
     id
     createdAt
     title
     updatedAt
+    text
   }
 }
     `;
